@@ -1,0 +1,29 @@
+KernelSU 4.9-port-kit
+=====================
+
+Upstream: tiann/KernelSU, tag v0.9.5
+Upstream commit: b766b98513b5a7eb33bc1c4a76b5702bf1288f07
+Retrieved: 2026-11-24
+
+The root source tree of this repository is a byte-for-byte copy of the
+upstream v0.9.5 tag. No upstream source file was modified.
+
+Licenses:
+  kernel/**            GPL-2.0-only        (kernel/LICENSE)
+  everything else      GPL-3.0-or-later    (LICENSE)
+
+Added by lyu323 (2026-11-24), all NEW files with SPDX headers:
+  port-kit/**                 documentation, read-only scripts, config fragments
+  PORT_KIT_NOTICE.md          top-level notice
+  README_PORT.md              Chinese entry point
+  PORT_KIT_RELEASE_NOTES.md   Release notes
+  .github/workflows/fetch-official-manager.yml
+
+If you build and distribute ANY binary from this repository (boot image,
+kernelsu.ko, Manager APK, ...), you MUST accompany it with the corresponding
+source for that exact build and both license texts. A private repository is
+only suitable for keeping your own build artifacts; it cannot be used to
+distribute a closed-source derivative publicly.
+
+This repository does NOT contain a flashable root package and does NOT claim
+that Android 9 / kernel 4.9.117 is officially supported by KernelSU.

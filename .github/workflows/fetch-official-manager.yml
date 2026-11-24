@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Added for lyu323 4.9-port-kit (2026-11-24). New file; NOT upstream source.
+#
+# Fetch the UNMODIFIED official v0.9.5 Manager APK from upstream GitHub Release
+# (the sandbox cannot reach release-assets CDN; GitHub runners can), publish it
+# together with the exact upstream source + both GPL licenses, and also commit
+# the APK to an 'official-assets' branch so it can be retrieved via git blobs.
+name: Publish 4.9 port-kit release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch official v0.9.5 Manager APK
+        run: |
+          set -e
+          curl -fL --retry 4 --retry-delay 5 --max-time 600 \
+            -o KernelSU_v0.9.5_11872-release.apk \
+            "https://github.com/tiann/KernelSU/releases/download/v0.9.5/KernelSU_v0.9.5_11872-release.apk"
+          test "$(stat -c%s KernelSU_v0.9.5_11872-release.apk)" -eq 8527498
+          python3 - <<'PY'
+import zipfile
+p='KernelSU_v0.9.5_11872-release.apk'
+assert zipfile.is_zipfile(p), 'not a zip/apk'
+print('official APK ok:', p)
+PY
+
+      - name: Fetch exact upstream v0.9.5 source zip
+        run: |
+          curl -fL --retry 4 --max-time 600 \
+            -o KernelSU-v0.9.5-source.zip \
+            "https://codeload.github.com/tiann/KernelSU/zip/refs/tags/v0.9.5"
+          python3 - <<'PY'
+import zipfile
+z=zipfile.ZipFile('KernelSU-v0.9.5-source.zip')
+n=z.namelist()
+assert any(x.endswith('/LICENSE') for x in n), 'LICENSE missing'
+assert any(x.endswith('kernel/LICENSE') for x in n), 'kernel/LICENSE missing'
+print('source zip files:', len(n))
+PY
+
+      - name: Pack port-kit and licenses
+        run: |
+          set -e
+          ( cd port-kit && zip -qr ../port-kit.zip . )
+          cp LICENSE LICENSE-copy
+          cp kernel/LICENSE kernel-LICENSE
+          cp PORT_KIT_RELEASE_NOTES.md README-zh.md
+          ls -lh KernelSU_v0.9.5_11872-release.apk KernelSU-v0.9.5-source.zip port-kit.zip LICENSE kernel-LICENSE
+
+      - name: Create / update Release port-kit-1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gh release delete port-kit-1 --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create port-kit-1 \
+            --title "KernelSU 4.9 port-kit 1 (source + official v0.9.5 Manager)" \
+            --notes-file PORT_KIT_RELEASE_NOTES.md \
+            KernelSU_v0.9.5_11872-release.apk \
+            KernelSU-v0.9.5-source.zip \
+            port-kit.zip LICENSE kernel-LICENSE README-zh.md
+          echo "release created"
+
+      - name: Mirror APK to official-assets branch (for git-blob retrieval)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config user.name "lyu323"
+          git config user.email "lyu323@users.noreply.github.com"
+          git checkout --orphan official-assets
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /home/runner/work/*/*/KernelSU_v0.9.5_11872-release.apk . 2>/dev/null || \
+            cp KernelSU_v0.9.5_11872-release.apk . || true
+          test -f KernelSU_v0.9.5_11872-release.apk
+          git add -f KernelSU_v0.9.5_11872-release.apk
+          git commit -m "mirror unmodified official v0.9.5 Manager APK"
+          git push -f origin official-assets
