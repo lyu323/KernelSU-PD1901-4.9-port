@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Added for lyu323 4.9-port-kit (2026-11-24). New file; NOT upstream source.
 #
-# Fetch the UNMODIFIED official v0.9.5 Manager APK from upstream GitHub Release
-# (the sandbox cannot reach release-assets CDN; GitHub runners can), publish it
-# together with the exact upstream source + both GPL licenses, and also commit
-# the APK to an 'official-assets' branch so it can be retrieved via git blobs.
+# Fetch the UNMODIFIED official v0.9.5 Manager APK from the upstream Release
+# (the build sandbox cannot reach the release-assets CDN; GitHub runners can),
+# publish it together with the exact upstream source + both GPL licenses, and
+# mirror the APK to an 'official-assets' branch for retrieval via git blobs.
 name: Publish 4.9 port-kit release
 
 on:
@@ -29,26 +29,15 @@ jobs:
             -o KernelSU_v0.9.5_11872-release.apk \
             "https://github.com/tiann/KernelSU/releases/download/v0.9.5/KernelSU_v0.9.5_11872-release.apk"
           test "$(stat -c%s KernelSU_v0.9.5_11872-release.apk)" -eq 8527498
-          python3 - <<'PY'
-import zipfile
-p='KernelSU_v0.9.5_11872-release.apk'
-assert zipfile.is_zipfile(p), 'not a zip/apk'
-print('official APK ok:', p)
-PY
+          python3 -c "import zipfile; assert zipfile.is_zipfile('KernelSU_v0.9.5_11872-release.apk'); print('official APK ok')"
 
       - name: Fetch exact upstream v0.9.5 source zip
         run: |
+          set -e
           curl -fL --retry 4 --max-time 600 \
             -o KernelSU-v0.9.5-source.zip \
             "https://codeload.github.com/tiann/KernelSU/zip/refs/tags/v0.9.5"
-          python3 - <<'PY'
-import zipfile
-z=zipfile.ZipFile('KernelSU-v0.9.5-source.zip')
-n=z.namelist()
-assert any(x.endswith('/LICENSE') for x in n), 'LICENSE missing'
-assert any(x.endswith('kernel/LICENSE') for x in n), 'kernel/LICENSE missing'
-print('source zip files:', len(n))
-PY
+          python3 -c "import zipfile; z=zipfile.ZipFile('KernelSU-v0.9.5-source.zip'); n=z.namelist(); assert any(x.endswith('/LICENSE') for x in n); assert any(x.endswith('kernel/LICENSE') for x in n); print('source files', len(n))"
 
       - name: Pack port-kit and licenses
         run: |
@@ -58,7 +47,7 @@ PY
           cp PORT_KIT_RELEASE_NOTES.md README-zh.md
           ls -lh KernelSU_v0.9.5_11872-release.apk KernelSU-v0.9.5-source.zip port-kit.zip LICENSE kernel-LICENSE
 
-      - name: Create / update Release port-kit-1
+      - name: Create Release port-kit-1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -72,14 +61,13 @@ PY
             port-kit.zip LICENSE kernel-LICENSE README-zh.md
           echo "release created"
 
-      - name: Mirror APK to official-assets branch (for git-blob retrieval)
+      - name: Mirror APK to official-assets branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           git config user.name "lyu323"
           git config user.email "lyu323@users.noreply.github.com"
-          # keep the APK outside the worktree before the orphan checkout wipes it
           cp KernelSU_v0.9.5_11872-release.apk /tmp/ksu095.apk
           git checkout --orphan official-assets
           git rm -rf . >/dev/null 2>&1 || true
