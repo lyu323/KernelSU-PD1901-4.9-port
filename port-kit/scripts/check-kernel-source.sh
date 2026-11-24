@@ -56,7 +56,14 @@ check execve_file      fs/exec.c        '__do_execve_file'
 check vfs_read         fs/read_write.c  'vfs_read'
 check statx            fs/stat.c        'vfs_statx'
 check fstatat          fs/stat.c        'vfs_fstatat'
-check path_umount      fs/namespace.c   'path_umount'
+# path_umount 用「函数定义」匹配，避免把注释里的字样误判成已存在
+if [ -f fs/namespace.c ] && grep -Eq 'path_umount[[:space:]]*\(' fs/namespace.c 2>/dev/null; then
+  echo '  [yes] path_umount            (function present)    in fs/namespace.c'
+  HAS_PATH_UMOUNT=1
+else
+  echo '  [no ] path_umount            (needs backport)      in fs/namespace.c'
+  HAS_PATH_UMOUNT=0
+fi
 check devpts           fs/devpts/inode.c 'devpts_get_priv'
 echo
 
@@ -87,8 +94,8 @@ grep -q 'do_faccessat' fs/open.c 2>/dev/null \
 grep -q 'vfs_statx' fs/stat.c 2>/dev/null \
   && echo "     stat.c：用 vfs_statx" \
   || echo "     stat.c：没有 vfs_statx -> 改挂 vfs_fstatat"
-grep -q 'path_umount' fs/namespace.c 2>/dev/null \
-  || echo "  3. fs/namespace.c 缺 path_umount -> 需回移植（内核 < 5.9，卸载模块功能）"
+[ "${HAS_PATH_UMOUNT:-0}" -eq 0 ] \
+  && echo "  3. fs/namespace.c 缺 path_umount 函数 -> 需回移植（内核 < 5.9，卸载模块功能）"
 echo "  4. 建议补：fs/devpts/inode.c (devpts_get_priv, 修 pm)、drivers/input/input.c (安全模式)。"
 echo "  5. 先原样编译能开机，再集成；fastboot boot 试刷不落盘，确认后再 flash。"
 echo
