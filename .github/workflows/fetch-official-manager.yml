@@ -54,7 +54,6 @@ PY
         run: |
           set -e
           ( cd port-kit && zip -qr ../port-kit.zip . )
-          cp LICENSE LICENSE-copy
           cp kernel/LICENSE kernel-LICENSE
           cp PORT_KIT_RELEASE_NOTES.md README-zh.md
           ls -lh KernelSU_v0.9.5_11872-release.apk KernelSU-v0.9.5-source.zip port-kit.zip LICENSE kernel-LICENSE
@@ -80,10 +79,11 @@ PY
           set -e
           git config user.name "lyu323"
           git config user.email "lyu323@users.noreply.github.com"
+          # keep the APK outside the worktree before the orphan checkout wipes it
+          cp KernelSU_v0.9.5_11872-release.apk /tmp/ksu095.apk
           git checkout --orphan official-assets
           git rm -rf . >/dev/null 2>&1 || true
-          cp /home/runner/work/*/*/KernelSU_v0.9.5_11872-release.apk . 2>/dev/null || \
-            cp KernelSU_v0.9.5_11872-release.apk . || true
+          cp /tmp/ksu095.apk KernelSU_v0.9.5_11872-release.apk
           test -f KernelSU_v0.9.5_11872-release.apk
           git add -f KernelSU_v0.9.5_11872-release.apk
           git commit -m "mirror unmodified official v0.9.5 Manager APK"
